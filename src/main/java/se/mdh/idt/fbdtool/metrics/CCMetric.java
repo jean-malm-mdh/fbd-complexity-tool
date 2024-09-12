@@ -4,7 +4,9 @@ import se.mdh.idt.fbdtool.structures.Block;
 import se.mdh.idt.fbdtool.structures.POU;
 import se.mdh.idt.fbdtool.structures.Project;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.Properties;
 
 /**
  * Created by ado_4 on 3/5/2017.
@@ -27,6 +29,18 @@ public class CCMetric implements ComplexityMetric {
       weights.put(functionBlocks[i], functionBlockWeights[i]);
     }
   }
+  public CCMetric(Properties config)
+  {
+    weights = new HashMap<>();
+    for (String key : functions) {
+      weights.put(key, 1);
+    }
+
+    for (int i = 0; i < functionBlocks.length; i++) {
+      weights.put(functionBlocks[i], functionBlockWeights[i]);
+    }
+    this.addOptionalCCKeywordWeights(config);
+  }
 
   public void addNewKeywords(String[] keywords, int[] weights) {
     if (keywords.length != weights.length) {
@@ -36,6 +50,24 @@ public class CCMetric implements ComplexityMetric {
     for (int i = 0; i < keywords.length; i++) {
       this.weights.put(keywords[i], weights[i]);
     }
+  }
+
+
+  public void addOptionalCCKeywordWeights(Properties config) {
+
+    String cyclomatic_keywords = config.getProperty("cyclomatic.keywords");
+    String cyclomatic_weights = config.getProperty("cyclomatic.weights");
+    if (cyclomatic_keywords == null ||
+            cyclomatic_weights == null)
+      return;
+    if (cyclomatic_keywords.isEmpty() || cyclomatic_weights.isEmpty())
+      return;
+
+    String[] keywords = cyclomatic_keywords.split(",");
+    int[] weights = Arrays.stream(cyclomatic_weights.split(","))
+            .mapToInt(Integer::parseInt)
+            .toArray();
+    this.addNewKeywords(keywords, weights);
   }
 
   @Override

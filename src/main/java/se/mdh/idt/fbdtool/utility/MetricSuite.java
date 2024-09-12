@@ -8,12 +8,19 @@ import se.mdh.idt.fbdtool.structures.POU;
 import se.mdh.idt.fbdtool.structures.Project;
 
 import java.util.*;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 
 /**
  * Created by ado_4 on 3/10/2017.
  */
 public class MetricSuite implements Runnable {
+
+  public enum TargetType {
+    POU,
+    PROJECT
+  }
 
   HashMap<String, Double> results;
   List<HashMap<String, Double> > pouResults;
@@ -23,20 +30,16 @@ public class MetricSuite implements Runnable {
   private Properties config;
   private String filePath;
   private String name;
-  private String type;
+  private TargetType targetType;
   private boolean validated = false;
 
-  public MetricSuite(Properties config, String filePath, String name, String type) {
-    this.init(config, filePath, name, type);
+  public MetricSuite(Properties config, String filePath, String name, TargetType targetType) {
+    this.init(config, filePath, name, targetType);
   }
 
-  public MetricSuite(Properties config, String filePath, String name, String xsdPath, String type) {
-    this.init(config, filePath, name, type);
+  public MetricSuite(Properties config, String filePath, String name, String xsdPath, TargetType targetType) {
+    this.init(config, filePath, name, targetType);
     this.validated = XMLProjectValidator.validateProjectFile(filePath, xsdPath);
-  }
-
-  public void setType(String type) {
-    this.type = type;
   }
 
   public String getName() {
@@ -70,58 +73,59 @@ public class MetricSuite implements Runnable {
     return this.results;
   }
 
-  private void init(Properties config, String filePath, String name, String type) {
+  private void init(Properties config, String filePath, String name, TargetType targetType) {
     this.config = config;
     this.filePath = filePath;
     this.name = name.split(".xml")[0];
-    if (type.equals("pou")) {
-      this.type = "pou";
-    } else {
-      this.type = "project";
-    }
     initializeMetrics(config);
-
   }
-
-  private void initializeMetrics(Properties config) {
-    this.metricList = new ArrayList<>();
-    List<String> metrics = Arrays.asList(config.getProperty("complexity.metrics").split(","));
-
-    for (String metric : metrics) {
-      switch (metric) {
-        case "noe":
-          this.metricList.add(new NOEMetric());
-          break;
-        case "hc":
-          this.metricList.add(new HalsteadMetric());
-          break;
-        case "ifc":
-          this.metricList.add(new IFCMetric());
-          break;
-        case "cc":
-          CCMetric ccMetric = new CCMetric();
-          if (config.getProperty("cyclomatic.keywords") != null && config.getProperty("cyclomatic.weights") != null) {
-            String[] keywords = config.getProperty("cyclomatic.keywords").split(",");
-            int[] weights = Arrays.stream(config.getProperty("cyclomatic.weights").split(","))
-                    .mapToInt(x -> Integer.parseInt(x))
-                    .toArray();
-            ccMetric.addNewKeywords(keywords, weights);
-          }
-          this.metricList.add(ccMetric);
-          break;
-        default:
-          throw new IllegalArgumentException();
-      }
+  private static Optional<ComplexityMetric> MetricsFactory(Properties config, String metric_type)
+  {
+    switch (metric_type) {
+      case "noe":
+        return Optional.of(new NOEMetric());
+      case "hc":
+        return Optional.of(new HalsteadMetric());
+      case "ifc":
+        return Optional.of(new IFCMetric());
+      case "cc":
+        return Optional.of(new CCMetric(config));
+      default:
+        // Would be more elegant to return an Error here, I suppose
+        System.err.println(metric_type + " is not a valid metric. Skipped!");
+        return Optional.empty();
     }
   }
+  private static Function<String, Optional<ComplexityMetric>> applyConfig(Properties config)
+  {
+    Function<Properties, Function<String, Optional<ComplexityMetric>>> part_metrics_factory =
+            aProp -> aMetric -> MetricsFactory(aProp, aMetric);
+    return part_metrics_factory.apply(config);
+  }
+  private void initializeMetrics(Properties config) {
+    Function<String, Optional<ComplexityMetric>> prop_applied = applyConfig(config);
+    Iterator<ComplexityMetric> metrics =
+            Arrays.stream(config.getProperty("complexity.metrics").split(","))
+            .map((prop_applied))
+            .filter(Optional::isPresent).map(Optional::get).iterator();
+    metrics.forEachRemaining(m -> this.metricList.add(m));
+  }
 
+  private String computeResultName(Project project)
+  {
+    StringBuilder completeName = new StringBuilder();
+    project.getPOUs().stream().iterator().forEachRemaining(p -> completeName.append(p.getName()).append(','));
+
+    completeName.append(project.getTitle());
+    return completeName.toString();
+  }
   private List<HashMap<String, Double> > pouComplexity() {
     Project project = this.parser.extractFBDProject();
     this.pouResults = new ArrayList<>();
     StringBuilder completeName = new StringBuilder();
 
     for (POU pou : project.getPOUs()) {
-      completeName.append(pou.getName() + ",");
+      completeName.append(pou.getName()).append(",");
       HashMap<String, Double> results = new HashMap<>();
       for (ComplexityMetric metric : this.metricList) {
         results.putAll(metric.measurePOUComplexity(pou));
@@ -140,23 +144,29 @@ public class MetricSuite implements Runnable {
   }
 
 
-  public void measureComplexity(String type) {
-    if (type.equals("project")) {
-      this.projectComplexity();
-    }
-
-    if (type.equals("pou")) {
-      this.pouComplexity();
+  public void measureComplexity(TargetType targetType) {
+    switch (targetType)
+    {
+      case PROJECT:
+        this.projectComplexity();
+        break;
+      case POU:
+        this.pouComplexity();
+        break;
     }
   }
 
   @Override
   public void run() {
-    this.configureSuite(this.config, this.filePath);
+    if (!this.configureSuite(this.config, this.filePath))
+    {
+      System.err.println("Parser not initiated correctly.");
+      return;
+    }
     if (!validated) {
-      System.out.println(this.getName() + " " + "does not pass XSD schema validation");
+      System.err.println(this.getName() + " " + "does not pass XSD schema validation");
     } else {
-      this.measureComplexity(this.type);
+      this.measureComplexity(this.targetType);
     }
   }
 }

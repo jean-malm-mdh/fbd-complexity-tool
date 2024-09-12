@@ -26,7 +26,7 @@ public class SuiteManager {
   private static List<MetricSuite> results;
   private static String defaultConfig = "config.properties";
   private static int threadNumber = 100;
-  private static String type;
+  private static MetricSuite.TargetType targetType;
 
   public static void filterPLCProjects(String folderPath) {
     File dir = new File(folderPath);
@@ -44,12 +44,12 @@ public class SuiteManager {
     if (props.getProperty("filter") != null) {
       filter = Arrays.asList(props.getProperty("filter").split(","));
     }
-    type = props.getProperty("complexity.type");
+    targetType = MetricSuite.TargetType.valueOf(props.getProperty("complexity.type"));
     ExecutorService service = Executors.newFixedThreadPool(threadNumber);
     boolean finished = false;
     results = new ArrayList<>();
     for (File f : fbdProjects) {
-      MetricSuite suite = new MetricSuite(props, f.getPath(), f.getName(), xsdValidation, type);
+      MetricSuite suite = new MetricSuite(props, f.getPath(), f.getName(), xsdValidation, targetType);
       if (!filter.contains(suite.getName())) {
         results.add(suite);
         service.execute(suite);
@@ -63,7 +63,7 @@ public class SuiteManager {
       e.printStackTrace();
     }
     if (!finished) {
-      throw new TimeoutException();
+      throw new TimeoutException("Set of models not analysed within set timelimit");
     }
   }
 
@@ -87,7 +87,7 @@ public class SuiteManager {
     if (results.size() == 0) {
       throw new Exception("No results found");
     }
-    if (type.equals("pou")) {
+    if (targetType.equals("pou")) {
       headerRow.addAll(results.get(0).getPouResults().get(0).keySet());
     } else {
       headerRow.addAll(results.get(0).getResults().keySet());
@@ -95,7 +95,7 @@ public class SuiteManager {
 
     CSVWriter writer = new CSVWriter(output, headerRow);
     for (MetricSuite suite : results) {
-      writer.write(suite, type, false);
+      writer.write(suite, targetType.toString(), false);
     }
 
     writer.close();
