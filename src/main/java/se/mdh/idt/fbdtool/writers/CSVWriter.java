@@ -21,6 +21,11 @@ public class CSVWriter implements ComplexityWriter {
   private BufferedWriter writer;
   private List<String> headerList;
 
+  @Override
+  public BufferedWriter getWriter() {
+    return writer;
+  }
+
   public CSVWriter(String outputFile, List<String> header) {
     try {
       this.writer = new BufferedWriter(new FileWriter(outputFile));
@@ -39,21 +44,11 @@ public class CSVWriter implements ComplexityWriter {
   }
 
   @Override
-  public boolean write(Project p, boolean close) {
-    return false;
-  }
-
-  @Override
-  public boolean write(POU pou, boolean close) {
-    return false;
-  }
-
-  @Override
-  public boolean write(MetricSuite suite, String type, boolean close) {
+  public boolean write(MetricSuite suite, String type, boolean shouldCloseFile) {
 
     List<HashMap<String, Double> > measurementResults = new ArrayList<>();
-    if (type.equals("project")) {
-      measurementResults.add(suite.getResults());
+    if (type.equals("PROJECT")) {
+      measurementResults.add(suite.getProjectresults());
     } else {
       measurementResults = suite.getPouResults();
     }
@@ -62,10 +57,10 @@ public class CSVWriter implements ComplexityWriter {
     StringBuilder row = new StringBuilder();
 
     for (HashMap<String, Double> results : measurementResults) {
-      if (type.equals("project")) {
-        row.append(suite.getName() + DELIMITER);
+      if (type.equals("PROJECT")) {
+        row.append(suite.getName()).append(DELIMITER);
       } else {
-        row.append(suite.getName().split(",")[pouCounter] + DELIMITER);
+        row.append(suite.getName().split(",")[pouCounter]).append(DELIMITER);
         pouCounter++;
       }
       for (String s : this.headerList) {
@@ -77,7 +72,7 @@ public class CSVWriter implements ComplexityWriter {
           System.out.println("Key " + s + " not found");
         } else {
           DecimalFormat df = new DecimalFormat("#0.00");
-          row.append(df.format(results.get(s)) + DELIMITER);
+          row.append(df.format(results.get(s))).append(DELIMITER);
         }
       }
       row.deleteCharAt(row.length() - 1);
@@ -86,28 +81,15 @@ public class CSVWriter implements ComplexityWriter {
     boolean success = false;
     try {
       this.writer.write(row.toString());
-      if (close) {
-        writer.flush();
-        writer.close();
+      if (shouldCloseFile) {
+       success = this.close();
       }
-      success = true;
-    } catch (IOException e) {
+      else success = true;
+    }
+    catch (IOException e) {
       e.printStackTrace();
     }
 
-    return success;
-  }
-
-  @Override
-  public boolean close() {
-    boolean success = false;
-    try {
-      writer.flush();
-      writer.close();
-      success = true;
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
     return success;
   }
 }

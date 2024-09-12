@@ -9,20 +9,13 @@ import se.mdh.idt.fbdtool.structures.Project;
 
 import java.util.*;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 
 
 /**
  * Created by ado_4 on 3/10/2017.
  */
 public class MetricSuite implements Runnable {
-
-  public enum TargetType {
-    POU,
-    PROJECT
-  }
-
-  HashMap<String, Double> results;
+  HashMap<String, Double> ProjectResults;
   List<HashMap<String, Double> > pouResults;
   List<ComplexityMetric> metricList;
 
@@ -46,8 +39,8 @@ public class MetricSuite implements Runnable {
     return name;
   }
 
-  public HashMap<String, Double> getResults() {
-    return this.results;
+  public HashMap<String, Double> getProjectresults() {
+    return this.ProjectResults;
   }
 
   public List<HashMap<String, Double> > getPouResults() {
@@ -64,19 +57,19 @@ public class MetricSuite implements Runnable {
     return true;
   }
 
-  private HashMap<String, Double> projectComplexity() {
-    Project project = this.parser.extractFBDProject();
-    this.results = new HashMap<>();
+  private HashMap<String, Double> computeProjectComplexity(Project project) {
+    this.ProjectResults = new HashMap<>();
     for (ComplexityMetric metric : this.metricList) {
-      this.results.putAll(metric.measureProjectComplexity(project));
+      this.ProjectResults.putAll(metric.measureProjectComplexity(project));
     }
-    return this.results;
+    return this.ProjectResults;
   }
 
   private void init(Properties config, String filePath, String name, TargetType targetType) {
     this.config = config;
     this.filePath = filePath;
     this.name = name.split(".xml")[0];
+    this.targetType = targetType;
     initializeMetrics(config);
   }
   private static Optional<ComplexityMetric> MetricsFactory(Properties config, String metric_type)
@@ -96,22 +89,27 @@ public class MetricSuite implements Runnable {
         return Optional.empty();
     }
   }
-  private static Function<String, Optional<ComplexityMetric>> applyConfig(Properties config)
+  private static Function<String, Optional<ComplexityMetric>>
+    applyConfig(Properties config)
   {
     Function<Properties, Function<String, Optional<ComplexityMetric>>> part_metrics_factory =
             aProp -> aMetric -> MetricsFactory(aProp, aMetric);
     return part_metrics_factory.apply(config);
   }
   private void initializeMetrics(Properties config) {
+    this.metricList = new ArrayList<>();
     Function<String, Optional<ComplexityMetric>> prop_applied = applyConfig(config);
+    String chosenMetrics = config.getProperty("complexity.metrics");
     Iterator<ComplexityMetric> metrics =
-            Arrays.stream(config.getProperty("complexity.metrics").split(","))
+            Arrays.stream(chosenMetrics.split(","))
             .map((prop_applied))
-            .filter(Optional::isPresent).map(Optional::get).iterator();
+            .filter(Optional::isPresent)
+            .map(Optional::get)
+            .iterator();
     metrics.forEachRemaining(m -> this.metricList.add(m));
   }
 
-  private String computeResultName(Project project)
+  private static String computeResultName(Project project)
   {
     StringBuilder completeName = new StringBuilder();
     project.getPOUs().stream().iterator().forEachRemaining(p -> completeName.append(p.getName()).append(','));
@@ -119,39 +117,30 @@ public class MetricSuite implements Runnable {
     completeName.append(project.getTitle());
     return completeName.toString();
   }
-  private List<HashMap<String, Double> > pouComplexity() {
-    Project project = this.parser.extractFBDProject();
+  private List<HashMap<String, Double> > pouComplexity(Project project) {
     this.pouResults = new ArrayList<>();
-    StringBuilder completeName = new StringBuilder();
 
     for (POU pou : project.getPOUs()) {
-      completeName.append(pou.getName()).append(",");
       HashMap<String, Double> results = new HashMap<>();
-      for (ComplexityMetric metric : this.metricList) {
-        results.putAll(metric.measurePOUComplexity(pou));
-      }
+      this.metricList.iterator().forEachRemaining(
+              m -> results.putAll(m.measurePOUComplexity(pou)));
       this.pouResults.add(results);
     }
-
-    HashMap<String, Double> projectResults = new HashMap<>();
-    for (ComplexityMetric metric : this.metricList) {
-      projectResults.putAll(metric.measureProjectComplexity(project));
-    }
-    pouResults.add(projectResults);
-    completeName.append(project.getTitle());
-    this.name = completeName.toString();
+    pouResults.add(this.computeProjectComplexity(project));
+    this.name = computeResultName(project);
     return this.pouResults;
   }
 
 
   public void measureComplexity(TargetType targetType) {
+    Project project = this.parser.extractFBDProject();
     switch (targetType)
     {
       case PROJECT:
-        this.projectComplexity();
+        this.computeProjectComplexity(project);
         break;
       case POU:
-        this.pouComplexity();
+        this.pouComplexity(project);
         break;
     }
   }
