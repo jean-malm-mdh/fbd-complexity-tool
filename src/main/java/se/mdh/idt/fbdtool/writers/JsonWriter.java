@@ -64,7 +64,7 @@ public class JsonWriter implements ComplexityWriter {
     }
     @Override
     public boolean write(MetricSuite suite, String type, boolean shouldCloseFile) {
-        boolean succ = true;
+        boolean res = true;
         try {
             if (type.equalsIgnoreCase("project")) {
                 getWriter().write(MakeProjectResultReport(suite));
@@ -76,6 +76,7 @@ public class JsonWriter implements ComplexityWriter {
         catch (IOException io_except)
         {
             io_except.printStackTrace();
+            res = false;
         }
         finally
         {
@@ -83,6 +84,6 @@ public class JsonWriter implements ComplexityWriter {
                 this.close();
             }
         }
-        return succ;
+        return res;
     }
 }

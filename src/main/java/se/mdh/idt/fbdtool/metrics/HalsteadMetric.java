@@ -11,15 +11,23 @@ public class HalsteadMetric implements ComplexityMetric {
   HashMap<String, Double> operators;
   HashMap<String, Double> operands;
   HashMap<String, Double> metric;
+  private final double EFFORT_COEFF = 18.0;
 
   public HalsteadMetric() {
-    this.generateParameters();
+    this.init();
   }
 
-  private void generateParameters() {
+  private void init() {
     this.operators = new HashMap<>();
     this.operands = new HashMap<>();
     this.metric = new HashMap<>();
+  }
+
+  private void clear()
+  {
+    this.operators.clear();
+    this.operands.clear();
+    this.metric.clear();
   }
 
   public HashMap<String, Double> getOperators() {
@@ -31,37 +39,19 @@ public class HalsteadMetric implements ComplexityMetric {
   }
 
   private void extractElementOperators(FBDElement el) {
-    if (this.operators.get(el.getElement()) != null) {
-      this.operators.put(el.getElement(), this.operators.get(el.getElement()) + 1.0);
-    } else {
-      this.operators.put(el.getElement(), 1.0);
-    }
-
-    if (this.operators.get(el.getType()) != null) {
-
-      this.operators.put(el.getType(), this.operators.get(el.getType()) + 1.0);
-    } else {
-      this.operators.put(el.getType(), 1.0);
-    }
+      this.operators.merge(el.getElement(), 1.0, Double::sum);
+      this.operators.merge(el.getType(), 1.0, Double::sum);
   }
 
   private void extractElementOperands(FBDElement el) {
-    if (this.operands.get(el.getName()) != null) {
-
-      this.operands.put(el.getName(), this.operands.get(el.getName()) + 1.0);
-    } else {
-
-      this.operands.put(el.getName(), 1.0);
-    }
+      this.operands.merge(el.getName(), 1.0, Double::sum);
   }
 
   private void extractVariableOperands(Variable var) {
     this.extractElementOperands(var);
-    if (this.operands.get(var.getValue()) != null) {
-      this.operands.put(var.getValue(), this.operands.get(var.getValue()) + 1.0);
-    } else if (var.getValue() != null) {
-      this.operands.put(var.getValue(), 1.0);
-    }
+    if (var.getValue() == null) return;
+
+    this.operands.merge(var.getValue(), 1.0, Double::sum);
   }
 
   private void extractVariableOperators(Variable var) {
@@ -70,21 +60,13 @@ public class HalsteadMetric implements ComplexityMetric {
 
   private void extractBlockOperators(Block block) {
     if (!block.getType().equals("block")) {
-      if (this.operators.get(block.getName()) != null) {
-        this.operators.put(block.getName(), this.operators.get(block.getName()) + 1.0);
-      } else {
-        this.operators.put(block.getName(), 1.0);
-      }
+        this.operators.merge(block.getName(), 1.0, Double::sum);
     }
   }
 
   private void extractBlockOperands(Block block) {
     if (block.getType().equals("block")) {
-      if (this.operands.get(block.getName()) != null) {
-        this.operands.put(block.getName(), this.operands.get(block.getName()) + 1.0);
-      } else {
-        this.operands.put(block.getName(), 1.0);
-      }
+        this.operands.merge(block.getName(), 1.0, Double::sum);
     }
   }
 
@@ -94,11 +76,10 @@ public class HalsteadMetric implements ComplexityMetric {
 
   private void extractDataTypeOperands(DataType dataType) {
     this.extractElementOperands(dataType);
-    if (this.operands.get(dataType.getValue()) != null) {
-      this.operands.put(dataType.getValue(), this.operands.get(dataType.getValue()) + 1.0);
-    } else if (dataType.getValue() != null) {
-      this.operands.put(dataType.getValue(), 1.0);
-    }
+    if (dataType.getValue() == null)
+      return;
+
+    this.operands.merge(dataType.getValue(), 1.0, Double::sum);
   }
 
   private void extractPOUOperands(POU pou) {
@@ -111,11 +92,7 @@ public class HalsteadMetric implements ComplexityMetric {
 
   private void extractConnectionOperands(int[] connection) {
     String connName = "Connection " + connection[0] + ":" + connection[1];
-    if (this.operands.get(connName) != null) {
-      this.operands.put(connName, this.operands.get(connName) + 1.0);
-    } else {
-      this.operands.put(connName, 1.0);
-    }
+      this.operands.merge(connName, 1.0, Double::sum);
   }
 
   private void extractProjectParameters(Project project) {
@@ -166,7 +143,7 @@ public class HalsteadMetric implements ComplexityMetric {
     double volume = length * log2(vocabulary);
     double difficulty = (n1 / 2.0) * (N2 / n2);
     double effort = volume * difficulty;
-    double time = effort / 18.0;
+    double time = effort / EFFORT_COEFF;
     double bugs = Math.pow(effort, 2.0 / 3.0) / 3000.0;
 
     this.metric.put("UniqueOperators", (double) n1);
@@ -185,7 +162,7 @@ public class HalsteadMetric implements ComplexityMetric {
 
   @Override
   public HashMap<String, Double> measureProjectComplexity(Project project) {
-    this.generateParameters();
+    this.clear();
     this.extractProjectParameters(project);
     this.calculateHalsteadMetrics();
     return this.metric;
@@ -193,7 +170,7 @@ public class HalsteadMetric implements ComplexityMetric {
 
   @Override
   public HashMap<String, Double> measurePOUComplexity(POU pou) {
-    this.generateParameters();
+    this.clear();
     this.extractPOUParameters(pou);
     this.calculateHalsteadMetrics();
     return this.metric;
