@@ -3,6 +3,7 @@ package se.mdh.idt.fbdtool.utility;
 import org.apache.commons.cli.*;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -15,11 +16,12 @@ public class CLI {
     optionList.add(new Option("f", "folder", true, "Folder that contains .plc projects."));
     // optionList.add(new Option("m", "metrics", true, "List of complexity metrics that will be calculated."));
     optionList.add(new Option("c", "config", true, "Java configuration property file."));
-    optionList.add(new Option("v", "config", true, "Validate project files against an xsd schema."));
+    optionList.add(new Option("v", "validate", true, "Validate project files against an xsd schema."));
     optionList.add(new Option("o", "output", true, "Output file path"));
 
+    String[] optionals = {"v", "o", "c"};
     for (Option o : optionList) {
-      if (o.getOpt().equals("v")) {
+      if (Arrays.stream(optionals).anyMatch(e -> o.getOpt().equals(e))) {
         o.setRequired(false);
       } else {
         o.setRequired(true);
@@ -44,7 +46,15 @@ public class CLI {
       cmd = parser.parse(options, args);
     } catch (ParseException e) {
       System.out.println(e.getMessage());
-      formatter.printHelp("Following options are required:", options);
+      formatter.printHelp("java -jar " + "tiqva"
+              + " -f <plc_project_folder>"
+              + " [-c <config_file>]"
+              + " [-o <output_path>]"
+              + "[-v <validation_schema>]",options);
+      for (Object op : options.getRequiredOptions())
+      {
+        System.getLogger("Error").log(System.Logger.Level.ERROR, "option " + op.toString() + " is required, but missing");
+      }
 
       System.exit(1);
       return null;

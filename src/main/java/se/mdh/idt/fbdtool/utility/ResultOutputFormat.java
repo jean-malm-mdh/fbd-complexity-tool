@@ -1,2 +1,6 @@
-package se.mdh.idt.fbdtool.utility;public class ResultOutputFormat {
+package se.mdh.idt.fbdtool.utility;
+
+public enum ResultOutputFormat {
+    JSON,
+    CSV
 }

@@ -2,6 +2,7 @@ package se.mdh.idt.fbdtool;
 
 import org.apache.commons.cli.CommandLine;
 import se.mdh.idt.fbdtool.utility.CLI;
+import se.mdh.idt.fbdtool.utility.ResultOutputFormat;
 import se.mdh.idt.fbdtool.utility.SuiteManager;
 
 import java.io.File;
@@ -9,10 +10,12 @@ import java.io.IOException;
 import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 
+import static java.lang.System.Logger.Level.INFO;
+
 public class App {
 
   public static void main(String[] args) {
-    System.out.println("Starting FBD projects measurement...");
+    System.getLogger("Statistics").log(INFO,"Starting FBD projects measurement...");
     long startTime = System.currentTimeMillis();
     CommandLine cli = CLI.parseArguments(args, CLI.generateCLIOptions());
 
@@ -20,7 +23,13 @@ public class App {
     try {
       SuiteManager.filterPLCProjects(cli.getOptionValue("f"), filePredicate);
       SuiteManager.measurePLCMetrics(cli.getOptionValue("c"), cli.getOptionValue("v"));
-      SuiteManager.saveMeasurementResults(cli.getOptionValue("o"));
+      if (cli.hasOption('o'))
+      SuiteManager.saveMeasurementResults(cli.getOptionValue("o"),
+                cli.getOptionValue("o").contains(".csv") ? ResultOutputFormat.CSV : ResultOutputFormat.JSON);
+      else
+      {
+        System.out.print(SuiteManager.getMeasurementAsString(ResultOutputFormat.JSON));
+      }
     } catch (IOException e) {
       e.printStackTrace();
     } catch (TimeoutException t) {
@@ -29,6 +38,6 @@ public class App {
       e.printStackTrace();
     }
     long endTime = System.currentTimeMillis();
-    System.out.println("Measurement time: " + (endTime - startTime) + " milliseconds");
+    System.getLogger("Statistics").log(INFO,"Measurement time: " + (endTime - startTime) + " milliseconds");
   }
 }

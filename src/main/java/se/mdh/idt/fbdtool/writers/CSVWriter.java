@@ -1,16 +1,17 @@
 package se.mdh.idt.fbdtool.writers;
 
-import se.mdh.idt.fbdtool.structures.POU;
-import se.mdh.idt.fbdtool.structures.Project;
 import se.mdh.idt.fbdtool.utility.MetricSuite;
+import se.mdh.idt.fbdtool.utility.TargetType;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Created by ado_4 on 3/11/2017.
@@ -27,27 +28,24 @@ public class CSVWriter implements ComplexityWriter {
   }
 
   public CSVWriter(String outputFile, List<String> header) {
-    try {
-      this.writer = new BufferedWriter(new FileWriter(outputFile));
-      StringBuilder headerRow = new StringBuilder();
       this.headerList = header;
-      for (String s : header) {
-        headerRow.append(s + DELIMITER);
-
+      try {
+          this.writer = new BufferedWriter(new FileWriter(outputFile));
+      } catch (IOException e) {
+          throw new RuntimeException(e);
       }
-      headerRow.deleteCharAt(headerRow.length() - 1);
-      headerRow.append(NEWLINE);
-      this.writer.write(headerRow.toString());
-    } catch (IOException e) {
-      e.printStackTrace();
-    }
   }
 
-  @Override
-  public boolean write(MetricSuite suite, String type, boolean shouldCloseFile) {
+  public static String writeToString(List<String> headerList, MetricSuite suite, TargetType type) {
 
-    List<HashMap<String, Double> > measurementResults = new ArrayList<>();
-    if (type.equals("PROJECT")) {
+    StringBuilder headerRow = new StringBuilder();
+    for (String s : headerList) {
+      headerRow.append(s).append(DELIMITER);
+    }
+    headerRow.deleteCharAt(headerRow.length() - 1);
+    headerRow.append(NEWLINE);
+    List<HashMap<String, Double>> measurementResults = new ArrayList<>();
+    if (type == TargetType.PROJECT) {
       measurementResults.add(suite.getProjectresults());
     } else {
       measurementResults = suite.getPouResults();
@@ -57,13 +55,13 @@ public class CSVWriter implements ComplexityWriter {
     StringBuilder row = new StringBuilder();
 
     for (HashMap<String, Double> results : measurementResults) {
-      if (type.equals("PROJECT")) {
+      if (type == TargetType.PROJECT) {
         row.append(suite.getName()).append(DELIMITER);
       } else {
         row.append(suite.getName().split(",")[pouCounter]).append(DELIMITER);
         pouCounter++;
       }
-      for (String s : this.headerList) {
+      for (String s : headerList) {
         if (s.equals(fileName)) {
           continue;
         }
@@ -71,20 +69,27 @@ public class CSVWriter implements ComplexityWriter {
         if (results.get(s) == null) {
           System.out.println("Key " + s + " not found");
         } else {
-          DecimalFormat df = new DecimalFormat("#0.00");
+          DecimalFormat df = new DecimalFormat("#0.00",
+                  DecimalFormatSymbols.getInstance(Locale.forLanguageTag("US")));
           row.append(df.format(results.get(s))).append(DELIMITER);
         }
       }
       row.deleteCharAt(row.length() - 1);
       row.append(NEWLINE);
     }
+    return headerRow.append(row).toString();
+  }
+
+  @Override
+  public boolean writeToFile(MetricSuite suite, TargetType type, boolean shouldCloseFile) {
+    String result = writeToString(this.headerList, suite, type);
     boolean success = false;
     try {
-      this.writer.write(row.toString());
+      this.writer.write(result);
       if (shouldCloseFile) {
-       success = this.close();
+       this.close();
       }
-      else success = true;
+      success = true;
     }
     catch (IOException e) {
       e.printStackTrace();

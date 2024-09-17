@@ -5,11 +5,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import se.mdh.idt.fbdtool.structures.POU;
 import se.mdh.idt.fbdtool.structures.Project;
 import se.mdh.idt.fbdtool.utility.MetricSuite;
+import se.mdh.idt.fbdtool.utility.TargetType;
 
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.Writer;
+import java.lang.annotation.Target;
 import java.nio.Buffer;
 
 public class JsonWriter implements ComplexityWriter {
@@ -23,7 +25,8 @@ public class JsonWriter implements ComplexityWriter {
     {
         return writer;
     }
-    private String MakeProjectResultReport(MetricSuite suite){
+
+    public static String MakeProjectResultReport(MetricSuite suite){
         StringBuilder sb = new StringBuilder();
         try {
             sb.append(String.format(
@@ -42,7 +45,7 @@ public class JsonWriter implements ComplexityWriter {
         }
         return sb.toString();
     }
-    private String MakePOUResultReport(MetricSuite suite)
+    public static String MakePOUResultReport(MetricSuite suite)
     {
         StringBuilder sb = new StringBuilder();
         try {
@@ -62,16 +65,20 @@ public class JsonWriter implements ComplexityWriter {
         }
         return sb.toString();
     }
+    public static String writeToString(MetricSuite suite, TargetType type)
+    {
+        if (type == TargetType.PROJECT) {
+            return MakeProjectResultReport(suite);
+        }
+        else {
+            return MakePOUResultReport(suite);
+        }
+    }
     @Override
-    public boolean write(MetricSuite suite, String type, boolean shouldCloseFile) {
+    public boolean writeToFile(MetricSuite suite, TargetType type, boolean shouldCloseFile) {
         boolean res = true;
         try {
-            if (type.equalsIgnoreCase("project")) {
-                getWriter().write(MakeProjectResultReport(suite));
-            }
-            else {
-                getWriter().write(MakePOUResultReport(suite));
-            }
+            getWriter().write(writeToString(suite, type));
         }
         catch (IOException io_except)
         {

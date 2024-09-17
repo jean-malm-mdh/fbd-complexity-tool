@@ -3,6 +3,7 @@ package se.mdh.idt.fbdtool.writers;
 import se.mdh.idt.fbdtool.structures.POU;
 import se.mdh.idt.fbdtool.structures.Project;
 import se.mdh.idt.fbdtool.utility.MetricSuite;
+import se.mdh.idt.fbdtool.utility.TargetType;
 
 import java.io.IOException;
 import java.io.Writer;
@@ -12,8 +13,8 @@ import java.io.Writer;
  */
 public interface ComplexityWriter {
   Writer getWriter();
-  boolean write(MetricSuite suite, String type, boolean shouldCloseFile);
 
+  boolean writeToFile(MetricSuite suite, TargetType type, boolean shouldCloseFile);
   default boolean close() {
     boolean success = false;
     try {

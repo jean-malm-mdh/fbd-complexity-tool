@@ -17,6 +17,8 @@ import java.util.concurrent.TimeoutException;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import static java.lang.System.Logger.Level.*;
+
 /**
  * Created by ado_4 on 3/10/2017.
  */
@@ -32,7 +34,7 @@ public class SuiteManager {
     File dir = new File(folderPath);
     List<File> fileList = Arrays.asList(Objects.requireNonNull(dir.listFiles()));
     fbdProjects = fileList.stream().filter(filePredicate).collect(Collectors.toList());
-    System.out.println("Number of FBD projects: " + fbdProjects.size());
+    System.getLogger("Statistics").log(INFO,"Number of FBD projects: " + fbdProjects.size());
   }
 
   public static void measurePLCMetrics(String config, String xsdValidation) throws IOException, TimeoutException {
@@ -82,7 +84,28 @@ public class SuiteManager {
     return props;
   }
 
-  public static void saveMeasurementResults(String output) throws Exception {
+  public static String getMeasurementAsString(ResultOutputFormat format) throws Exception {
+    List<String> headerRow = new ArrayList<>();
+    headerRow.add("Name");
+
+    if (targetType == TargetType.POU) {
+      headerRow.addAll(results.get(0).getPouResults().get(0).keySet());
+    } else {
+      headerRow.addAll(results.get(0).getProjectresults().keySet());
+    }
+
+    StringBuilder sb = new StringBuilder();
+    for (MetricSuite suite : results) {
+      String formattedOutput = format == ResultOutputFormat.CSV ?
+              CSVWriter.writeToString(headerRow, suite, targetType) :
+              JsonWriter.writeToString(suite, targetType);
+      sb.append(formattedOutput);
+    }
+
+    return sb.toString();
+  }
+
+  public static void saveMeasurementResults(String output, ResultOutputFormat format) throws Exception {
     List<String> headerRow = new ArrayList<>();
     headerRow.add("Name");
     if (results.isEmpty()) {
@@ -94,9 +117,9 @@ public class SuiteManager {
       headerRow.addAll(results.get(0).getProjectresults().keySet());
     }
 
-    ComplexityWriter writer = output.contains(".csv") ? new CSVWriter(output, headerRow) : new JsonWriter(output);
+    ComplexityWriter writer = format == ResultOutputFormat.CSV ? new CSVWriter(output, headerRow) : new JsonWriter(output);
     for (MetricSuite suite : results) {
-      writer.write(suite, targetType.toString(), false);
+      writer.writeToFile(suite, targetType, false);
     }
 
     writer.close();
