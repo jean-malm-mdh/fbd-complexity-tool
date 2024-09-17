@@ -13,8 +13,7 @@ public class CLI {
   public static Options generateCLIOptions() {
     Options options = new Options();
     List<Option> optionList = new ArrayList<Option>();
-    optionList.add(new Option("f", "folder", true, "Folder that contains .plc projects."));
-    // optionList.add(new Option("m", "metrics", true, "List of complexity metrics that will be calculated."));
+    optionList.add(new Option("f", "file", true, "target file, or directory containing PLC files."));
     optionList.add(new Option("c", "config", true, "Java configuration property file."));
     optionList.add(new Option("v", "validate", true, "Validate project files against an xsd schema."));
     optionList.add(new Option("o", "output", true, "Output file path"));
@@ -45,9 +44,9 @@ public class CLI {
     try {
       cmd = parser.parse(options, args);
     } catch (ParseException e) {
-      System.out.println(e.getMessage());
+      System.err.println(e.getMessage());
       formatter.printHelp("java -jar " + "tiqva"
-              + " -f <plc_project_folder>"
+              + " -f <target_path>"
               + " [-c <config_file>]"
               + " [-o <output_path>]"
               + "[-v <validation_schema>]",options);

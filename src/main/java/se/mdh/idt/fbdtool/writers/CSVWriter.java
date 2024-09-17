@@ -67,7 +67,7 @@ public class CSVWriter implements ComplexityWriter {
         }
 
         if (results.get(s) == null) {
-          System.out.println("Key " + s + " not found");
+          System.err.println("Key " + s + " not found");
         } else {
           DecimalFormat df = new DecimalFormat("#0.00",
                   DecimalFormatSymbols.getInstance(Locale.forLanguageTag("US")));

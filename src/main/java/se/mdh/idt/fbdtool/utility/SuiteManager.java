@@ -31,15 +31,23 @@ public class SuiteManager {
   private static TargetType targetType;
 
   public static void filterPLCProjects(String folderPath, Predicate<File> filePredicate) {
-    File dir = new File(folderPath);
-    List<File> fileList = Arrays.asList(Objects.requireNonNull(dir.listFiles()));
-    fbdProjects = fileList.stream().filter(filePredicate).collect(Collectors.toList());
-    System.getLogger("Statistics").log(INFO,"Number of FBD projects: " + fbdProjects.size());
+    File target = new File(folderPath);
+    if (target.isDirectory()) {
+      List<File> fileList = Arrays.asList(Objects.requireNonNull(target.listFiles()));
+      fbdProjects = fileList.stream().filter(filePredicate).collect(Collectors.toList());
+      System.getLogger("Statistics").log(INFO, "Number of FBD projects: " + fbdProjects.size());
+    }
+    else if (target.isFile()) {
+      fbdProjects = List.of(new File[]{target});
+    }
   }
 
   public static void measurePLCMetrics(String config, String xsdValidation) throws IOException, TimeoutException {
+    if (fbdProjects == null) {
+      throw new NoSuchFileException("Target file does not exist");
+    }
     if (fbdProjects.isEmpty()) {
-      throw new NoSuchFileException("No file to be analyzed");
+      throw new NoSuchFileException("No valid file found");
     }
     Properties props = prepareSuite(config);
     List<String> filter = new ArrayList<>();
@@ -73,7 +81,7 @@ public class SuiteManager {
   private static Properties prepareSuite(String configPath) throws IOException {
     InputStream inputStream;
     if (!(new File(configPath).exists())) {
-      System.out.println("Provided properties file does not exist. Using builtin config.properties.");
+      System.err.println("Provided properties file does not exist. Using builtin config.properties.");
       inputStream = SuiteManager.class.getClassLoader().getResourceAsStream(defaultConfig);
     } else {
       inputStream = new FileInputStream(configPath);

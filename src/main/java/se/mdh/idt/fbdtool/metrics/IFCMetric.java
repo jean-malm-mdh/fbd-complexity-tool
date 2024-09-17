@@ -62,7 +62,6 @@ public class IFCMetric implements ComplexityMetric {
     double result = this.calculateInformationFlow(pou);
 
     if (metric.containsKey(this.metricTitle) && metric.get(this.metricTitle) < result) {
-      System.out.println(result + " " + metric.get(this.metricTitle));
       metric.put(this.metricTitle, result);
     } else if (!metric.containsKey(this.metricTitle)) {
       metric.put(this.metricTitle, result);

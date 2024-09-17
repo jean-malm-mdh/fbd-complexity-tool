@@ -48,7 +48,7 @@ public class DOM4JParser implements FBDParser {
       inputStream = getClass().getClassLoader().getResourceAsStream(properties);
       config.load(inputStream);
     } catch (IOException e) {
-      System.out.println("Provided properties file not found. Using default properties");
+      System.err.println("Provided properties file not found. Using default properties");
     }
 
     return config;
